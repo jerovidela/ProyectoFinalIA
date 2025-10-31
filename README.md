@@ -1,10 +1,5 @@
 # 🔧 Sistema de Reconocimiento de Elementos de Ferretería
 
-python3 -m venv IA_env
-source IA_env/bin/activate
-
-pip install opencv-python numpy matplotlib
-
 ## 📋 Descripción del Proyecto
 
 Este proyecto implementa un sistema de visión artificial para el reconocimiento automático de elementos de ferretería comunes: **tornillos**, **tuercas**, **arandelas** y **clavos**. El sistema está diseñado siguiendo los principios de la materia de Inteligencia Artificial, utilizando técnicas clásicas de procesamiento de imágenes sin recurrir a redes neuronales complejas.
