@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from pathlib import Path
 
-input_dir  = Path("img")
+input_dir  = Path("img2")
 output_dir = Path("out")
 output_dir.mkdir(exist_ok=True)
 

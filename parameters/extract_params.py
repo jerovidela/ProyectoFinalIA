@@ -1,105 +1,115 @@
 import cv2
-import numpy as np
-import os
 import json
-import glob
+import numpy as np
+from pathlib import Path
 
-img_dir = "img"
-output_dir = "outjson"
+INPUT_DIR = Path("out")  
+OUTPUT_DIR = Path("outjson")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+IMG_EXTS = (".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff")
 
-os.makedirs(output_dir, exist_ok=True)
+EPS_FRAC = 0.02
+K_CURV = 5
 
-image_extensions = ["*.jpg", "*.jpeg", "*.png"]
-image_files = []
-for ext in image_extensions:
-    image_files.extend(glob.glob(os.path.join(img_dir, ext)))
-    image_files.extend(glob.glob(os.path.join(img_dir, ext.upper())))
+images = []
+for e in IMG_EXTS:
+    images += list(INPUT_DIR.glob(f"*{e}"))
+    images += list(INPUT_DIR.glob(f"*{e.upper()}"))
 
-for img_path in sorted(image_files):
-    filename = os.path.basename(img_path)
-    
-    img = cv2.imread(img_path)
-    if img is None:
-        print(f"  ERROR: No se pudo cargar {filename}")
+if not images:
+    print(f"No se encuentran imagenes en {INPUT_DIR}")
+
+for img_path in sorted(images):
+
+    g = cv2.imread(str(img_path), cv2.IMREAD_GRAYSCALE)
+    if g is None:
+        print("No se puede leer imagen")
         continue
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    if np.mean(binary) > 127:
-        binary = cv2.bitwise_not(binary)
-    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if len(contours) == 0:
-        print(f"  ERROR: No se encontraron contornos en {filename}")
+
+    _, bin_img = cv2.threshold(g, 127, 255, cv2.THRESH_BINARY)
+    if cv2.countNonZero(bin_img) > bin_img.size // 2:
+        bin_img = cv2.bitwise_not(bin_img)
+
+    num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(bin_img, 8)
+    if num_labels <= 1:
+        print("No se encontro objeto")
+        continue
+    largest_idx = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
+    mask = (labels == largest_idx).astype(np.uint8) * 255
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        print("No se encontró contorno")
         continue
     contour = max(contours, key=cv2.contourArea)
-    if len(contour) < 5:
-        print(f"  ERROR: Contorno muy pequeño en {filename}")
-        continue
-    # ============================================================================
-    # PARÁMETRO 1: CIRCLE_AREA_RATIO
-    # ============================================================================
+
     area = cv2.contourArea(contour)
-    (x, y), radius = cv2.minEnclosingCircle(contour)
-    circle_area = np.pi * radius * radius
-    circle_area_ratio = area / circle_area if circle_area > 0 else 0
-    # ============================================================================
-    # PARÁMETRO 2: HU_MOMENT_1 (Segundo momento invariante de Hu)
-    # PARÁMETRO 3: HU_MOMENT_2 (Tercer momento invariante de Hu)
-    # ============================================================================
-    moments = cv2.moments(contour)
-    hu_moments = cv2.HuMoments(moments).flatten()
-    hu_moment_1 = abs(hu_moments[1]) if len(hu_moments) > 1 else 0
-    hu_moment_2 = abs(hu_moments[2]) if len(hu_moments) > 2 else 0
-    # ============================================================================
-    # PARÁMETRO 4: ANGLES_MIN
-    # ============================================================================
+    (circ_cx, circ_cy), circle_radius = cv2.minEnclosingCircle(contour)
+    if circle_radius > 0:
+        circle_area_ratio = float(area / (np.pi * (circle_radius ** 2)))
+    else:
+        circle_area_ratio = 0.0
+
+    M = cv2.moments(contour)
+    hu_raw = cv2.HuMoments(M).flatten()
+    def transform_hu(v):
+        if v == 0:
+            return 0.0
+        return float(-np.sign(v) * np.log10(abs(v)))
+    hu_moment_1 = transform_hu(hu_raw[0]) if hu_raw.size >= 1 else 0.0
+    hu_moment_2 = transform_hu(hu_raw[1]) if hu_raw.size >= 2 else 0.0
+
+    eps = EPS_FRAC * cv2.arcLength(contour, True)
+    approx = cv2.approxPolyDP(contour, eps, True)
+    pts = approx.reshape(-1, 2).astype(float)
     angles = []
-    n_points = len(contour)
-    for i in range(n_points):
-        p1 = contour[(i-1) % n_points][0]
-        p2 = contour[i][0]
-        p3 = contour[(i+1) % n_points][0]
-        v1 = p1 - p2
-        v2 = p3 - p2
-        norm1 = np.linalg.norm(v1)
-        norm2 = np.linalg.norm(v2)
-        if norm1 > 0 and norm2 > 0:
-            cos_angle = np.dot(v1, v2) / (norm1 * norm2)
-            cos_angle = np.clip(cos_angle, -1, 1)
-            angle = np.arccos(cos_angle)
-            angles.append(np.degrees(angle))
-    angles_min = min(angles) if angles else 180
-    # ============================================================================
-    # PARÁMETRO 5: CURVATURE_MAX
-    # ============================================================================
-    curvatures = []
-    for i in range(n_points):
-        if i < 2 or i >= n_points - 2:
-            continue            
-        p1 = contour[i-2][0]
-        p2 = contour[i-1][0]
-        p3 = contour[i][0]
-        p4 = contour[i+1][0]
-        p5 = contour[i+2][0]
-        dx1 = (p4[0] - p2[0]) / 2.0
-        dy1 = (p4[1] - p2[1]) / 2.0
-        dx2 = p4[0] - 2*p3[0] + p2[0]
-        dy2 = p4[1] - 2*p3[1] + p2[1]
-        numerator = abs(dx1 * dy2 - dy1 * dx2)
-        denominator = (dx1**2 + dy1**2)**(3/2)
-        if denominator > 1e-6:
-            curvature = numerator / denominator
-            curvatures.append(curvature)
-    curvature_max = max(curvatures) if curvatures else 0   
-    result = {
-        "filename": filename,
+    n = len(pts)
+    if n >= 3:
+        for i in range(n):
+            p_prev = pts[i - 1]
+            p = pts[i]
+            p_next = pts[(i + 1) % n]
+
+            v1 = p_prev - p
+            v2 = p_next - p
+            n1 = np.linalg.norm(v1)
+            n2 = np.linalg.norm(v2)
+            if n1 > 0 and n2 > 0:
+                cos_a = np.clip(np.dot(v1, v2) / (n1 * n2), -1.0, 1.0)
+                angle = np.degrees(np.arccos(cos_a))
+            else:
+                angle = 0.0
+            angles.append(angle)
+    angles_min = float(np.min(angles)) if angles else 0.0
+
+    pts_full = contour.reshape(-1, 2)
+    n_full = len(pts_full)
+    curv_vals = []
+    if n_full >= 2 * K_CURV + 1:
+        for i in range(n_full):
+            p1 = pts_full[(i - K_CURV) % n_full]
+            p2 = pts_full[i]
+            p3 = pts_full[(i + K_CURV) % n_full]
+            v1 = p2 - p1
+            v2 = p3 - p2
+            n1 = np.linalg.norm(v1)
+            n2 = np.linalg.norm(v2)
+            if n1 > 0 and n2 > 0:
+                cross = v1[0] * v2[1] - v1[1] * v2[0]
+                c = cross / (n1 * n2)
+                curv_vals.append(abs(c))
+    curvature_max = float(np.max(curv_vals)) if curv_vals else 0.0
+
+    out = {
+        "filename": img_path.name,
         "circle_area_ratio": float(circle_area_ratio),
         "hu_moment_1": float(hu_moment_1),
         "angles_min": float(angles_min),
         "hu_moment_2": float(hu_moment_2),
-        "curvature_max": float(curvature_max)
+        "curvature_max": float(curvature_max),
     }
-    base_name = os.path.splitext(filename)[0]
-    output_file = os.path.join(output_dir, f"{base_name}.json")
-    with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump(result, f, indent=2, ensure_ascii=False)
-    print(f"  ✓ Guardado en: {output_file}")
+
+    out_path = OUTPUT_DIR / f"{img_path.stem}.json"
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(out, f, indent=2, ensure_ascii=False)
+    print(f"Saved → {out_path}")
