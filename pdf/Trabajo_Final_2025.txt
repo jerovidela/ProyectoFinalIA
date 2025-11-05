@@ -1,0 +1,171 @@
+                                          Trabajo Final
+                     Ingeniería en Mecatrónica – Inteligencia Artificial I – Año 2025
+
+
+
+
+                              CONSIDERACIONES GENERALES
+
+
+El trabajo se deberá realizar y presentar en forma individual.
+
+El plagio será motivo de no aprobación de la materia.
+
+Se deberá desarrollar un documento en formato .pdf que será presentado en forma
+conjunta con la defensa oral del proyecto. Dicho documento debe registrar el proceso de
+solución del problema y una descripción del agente implementado. Además, deberá
+presentarse respetando los siguientes puntos:
+
+    -    Título: “Trabajo Final Inteligencia Artificial I – año 2025: Clasificador de
+         piezas mediante visión artificial controlado por reconocimiento de voz.
+    -    Resumen: con un máximo de 200 palabras describa el problema a resolver, los
+         algoritmos utilizados, resultados y conclusiones.
+    -    Introducción: haga una descripción de lo que es la visión artificial, el
+         reconocimiento de voz y el problema a resolver.
+    -    Especificación del agente: (tipo/s de agente, tabla REAS y propiedades del
+         entorno de trabajo).
+    -    Diseño del agente: describa los algoritmos utilizados en cada etapa del agente.
+    -    Código: incluya una copia del código desarrollado
+    -    Ejemplo de aplicación: muestre un ejemplo de cada caso con los resultados
+         obtenidos.
+    -    Resultados: describa con especificaciones técnicas los datos utilizados y los datos
+         de prueba. Presente estadísticas de las clasificaciones realizadas. Comente los
+         resultados obtenidos.
+    -    Conclusiones: comente conclusiones generales, eficiencia, ventajas y desventajas
+         y trabajos a futuro para posibles mejoras.
+    -    Bibliografía y/o referencias utilizadas para realizar el trabajo.
+    -    IA generativa: si utiliza IA generativa, incluya las correspondientes referencias
+         indicando el uso de estas. Además coloque el “prompt” utilizado.
+
+
+
+
+Prof. Titular Dra. Ing. Selva S. Rivera – JTP Ing. Juan I. García
+Facultad de Ingeniería – Universidad Nacional de Cuyo
+                                                                                        1
+                                          Trabajo Final
+                     Ingeniería en Mecatrónica – Inteligencia Artificial I – Año 2025
+
+El documento generado, los archivos de base de datos utilizada y el programa
+desarrollado deberán entregarse en formato digital el mismo día de la presentación del
+trabajo.
+
+
+
+                               DESCRIPCIÓN DEL PROBLEMA
+
+Se debe desarrollar un agente de software que integre reconocimiento de voz, visión
+artificial y aprendizaje bayesiano para resolver un problema de clasificación y decisión
+en un entorno de producción.
+
+El escenario de prueba consiste en un sistema que trabaja con cajas que contienen mezclas
+de piezas (tornillos, tuercas, arandelas y clavos), en proporciones diferentes. Cada caja
+contiene 1.000 piezas en total. Las proporciones de las cajas son:
+
+    a) tornillos: 250; clavos:250; arandelas:250; tuercas:250
+    b) tornillos: 150; clavos:300; arandelas:300; tuercas:250
+    c) tornillos: 250; clavos:350; arandelas:250; tuercas:150
+    d) tornillos: 500; clavos:500; arandelas:0; tuercas:0
+
+Funcionamiento del sistema
+
+    1. Selección de caja:
+          o Se asume que el sistema selecciona una caja en forma aleatoria.
+
+    2. Extracción de muestra:
+          o El sistema extrae automáticamente 10 piezas al azar de la caja indicada.
+
+    3. Identificación visual (visión artificial con K-Means):
+          o Cada pieza se representa mediante características a elegir para identificar
+              cuantas piezas de cada clase se extraen.
+          o Se aplica el algoritmo K-Means para agrupar las piezas en cuatro clases
+              posibles (tornillos, clavos, arandelas, tuercas).
+          o Los centroides se entrenan o inicializan a partir de ejemplos de piezas
+              previamente etiquetadas.
+
+    4. Estimación bayesiana:
+          o Con los datos de la muestra clasificada, el agente aplica un clasificador
+             bayesiano para estimar la distribución probable de piezas en la caja
+             completa.
+
+    5. Comando de acción por voz (K-NN):
+         o El usuario debe dar una instrucción obligatoria con una sola palabra,
+            reconocida nuevamente con K-NN.
+         o Posibles comandos:
+                ▪ “Proporción” → muestra la estimación de proporciones en la
+                   caja.
+
+Prof. Titular Dra. Ing. Selva S. Rivera – JTP Ing. Juan I. García
+Facultad de Ingeniería – Universidad Nacional de Cuyo
+                                                                                        2
+                                          Trabajo Final
+                     Ingeniería en Mecatrónica – Inteligencia Artificial I – Año 2025
+
+                       ▪    “Contar” → indica cuántas piezas de cada tipo fueron
+                            reconocidas en la muestra.
+                       ▪    “Salir” → finaliza el proceso.
+
+
+Un posible esquema del sistema se presenta a continuación:
+
+
+
+
+                           Fig. 1 – imagen orientativa generada con Nano Banana.
+
+
+
+                                             Tener cuenta
+
+
+Se deberán armar dos Bases de Datos:
+    1- Imágenes: tomar al menos 6 imágenes diferentes de cada objeto por separado y en
+         distintas posiciones.
+    2- Voz: tomar varias muestras de cada palabra pronunciada por al menos 5 personas
+         diferentes.
+
+
+Prof. Titular Dra. Ing. Selva S. Rivera – JTP Ing. Juan I. García
+Facultad de Ingeniería – Universidad Nacional de Cuyo
+                                                                                        3
+                                          Trabajo Final
+                     Ingeniería en Mecatrónica – Inteligencia Artificial I – Año 2025
+
+
+                                         Algoritmos a utilizar
+
+
+    1- Reconocimiento de voz: algoritmo KNN implementado por el estudiante,
+         entrenado con grabaciones de las palabras comando.
+    2- Clasificación de imágenes: algoritmo Kmeans para reconocer las piezas.
+    3- Aprendizaje bayesiano: para estimar la proporción de piezas en la caja.
+
+
+
+
+                                             Investigación
+
+
+-        Investigar y encontrar los algoritmos adecuados para realizar la extracción de
+         características de modo de lograr una buena separación entre las 4 clases.
+
+
+
+                                            EVALUACIÓN
+
+
+La evaluación del trabajo final se realizará con la presentación del informe y el programa
+desarrollado y mediante un coloquio sobre dicho informe.
+Se evaluará contenido, organización y presentación del informe, así como eficiencia en
+el reconocimiento de las imágenes y la voz.
+El estudiante debe traer los objetos a identificar de manera que pueda tomarles una foto,
+con su celular para que el programa de visión artificial lo identifique.
+El profesor emitirá las palabras comando previstas para la ejecución del código.
+
+
+
+
+Prof. Titular Dra. Ing. Selva S. Rivera – JTP Ing. Juan I. García
+Facultad de Ingeniería – Universidad Nacional de Cuyo
+                                                                                        4
+
