@@ -59,6 +59,9 @@ class ModelManager:
             verbose=False
         )
         
+        # Estandarizar la estructura del modelo recién entrenado
+        self._standardize_kmeans_model()
+        
         self.save_models()
         print("✅ Entrenamiento completado y modelos guardados!")
         print(f"📊 Precisión KNN: {self.knn_model['metric_value']:.4f}")
@@ -102,22 +105,34 @@ class ModelManager:
             print(f"❌ Error creando mapeo de clusters: {e}")
             # Fallback al mapeo fijo si hay problemas
             return {0: "tornillo", 1: "clavo", 2: "arandela", 3: "tuerca"}
+    
+    def _standardize_kmeans_model(self):
+        """Estandariza la estructura del modelo KMeans recién entrenado"""
+        if not self.kmeans_model:
+            return
+            
+        # Crear mapeo cluster -> clase basado en los datos de entrenamiento
+        cluster_to_class = self._create_cluster_mapping()
+        
+        # Crear la estructura estándar que esperan los métodos de predicción
+        standardized_model = {
+            'centroids': self.kmeans_model.get('centroids'),
+            'scaler': self.kmeans_model.get('scaler'),
+            'param_keys': ["circle_area_ratio", "hu_moment_1", "angles_min", "hu_moment_2", "curvature_max"],
+            'cluster_to_class': cluster_to_class
+        }
+        
+        # Reemplazar el modelo con la estructura estándar
+        self.kmeans_model = standardized_model
+        print("🔄 Estructura del modelo KMeans estandarizada")
         
     def save_models(self):
         models_dir = Path("models")
         models_dir.mkdir(exist_ok=True)
         
-        # Crear mapeo cluster -> clase basado en los datos de entrenamiento
-        cluster_to_class = self._create_cluster_mapping()
-        
-        kmeans_data = {
-            'centroids': self.kmeans_model['centroids'],
-            'scaler': self.kmeans_model['scaler'],
-            'param_keys': ["circle_area_ratio", "hu_moment_1", "angles_min", "hu_moment_2", "curvature_max"],
-            'cluster_to_class': cluster_to_class
-        }
+        # El modelo ya está estandarizado, solo guardarlo
         with open(models_dir / "kmeans_model.pkl", "wb") as f:
-            pickle.dump(kmeans_data, f)
+            pickle.dump(self.kmeans_model, f)
             
         knn_data = {
             'X_train': self.knn_model['X_train'],
@@ -328,10 +343,10 @@ class FileMonitor(FileSystemEventHandler):
         except Exception as e:
             print(f"❌ Error procesando {filename}: {e}")
     
-    def on_modified(self, event):
-        # También detectar modificaciones (por si acaso)
-        if not event.is_directory:
-            self.on_created(event)
+    # def on_modified(self, event):
+    #     # También detectar modificaciones (por si acaso)
+    #     if not event.is_directory:
+    #         self.on_created(event)
     
     def handle_new_image(self, image_path):
         """Procesa una nueva imagen"""
@@ -444,13 +459,7 @@ def start_monitoring():
             event_handler.handle_new_image(str(img_file))
         except Exception as e:
             print(f"❌ Error procesando {img_file.name}: {e}")
-    
-    for img_file in img_new_dir.glob("*.png"):
-        print(f"📸 Procesando imagen existente: {img_file.name}")
-        try:
-            event_handler.handle_new_image(str(img_file))
-        except Exception as e:
-            print(f"❌ Error procesando {img_file.name}: {e}")
+
     
     # Procesar audios existentes en comando/
     comando_dir = Path("comando")
